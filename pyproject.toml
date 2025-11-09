@@ -3,4 +3,21 @@ name = "annotation-system"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "aiofiles>=25.1.0",
+    "cappa>=0.30.4",
+    "fastapi>=0.121.0",
+    "granian>=2.5.7",
+    "pydantic-settings>=2.11.0",
+    "python-multipart>=0.0.20",
+    "watchfiles>=1.1.1",
+]
+
+[tool.setuptools]
+packages = ["backend"]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+webz = "backend.cli:main"

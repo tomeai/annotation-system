@@ -1,11 +1,15 @@
+import json
 import os
 import sqlite3
 from datetime import datetime
 from typing import List, Dict, Optional
 
+import aiofiles
+
 from backend.conf import BASE_PATH
 
 DATABASE_FILE = os.path.join(BASE_PATH, "files.db")
+OUTPUT_FOLDER = os.path.join(BASE_PATH, "output")
 
 
 def save_file_info(filename: str, original_filename: str, file_size: int, total_records: int,
@@ -309,7 +313,7 @@ def get_data_stats_from_db(file_id: int) -> Dict:
     }
 
 
-def export_data_from_db(file_id: int, export_name: str, export_type: str = "correct") -> Dict:
+async def export_data_from_db(file_id: int, export_name: str, export_type: str = "correct") -> Optional[Dict]:
     """从数据库导出标注数据（正确或错误）"""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
@@ -318,17 +322,66 @@ def export_data_from_db(file_id: int, export_name: str, export_type: str = "corr
     if export_type not in ["correct", "incorrect"]:
         raise ValueError("export_type 必须是 'correct' 或 'incorrect'")
 
-    # 根据类型查询数据
-    cursor.execute('''
-                   SELECT system, query, response
-                   FROM data_records
-                   WHERE file_id = ?
-                     AND annotation_result = ?
-                     AND status = 'active'
-                   ORDER BY line_number
-                   ''', (file_id, export_type))
+    # 获取文件的标注类型
+    cursor.execute('SELECT annotation_type FROM files WHERE id = ?', (file_id,))
+    file_row = cursor.fetchone()
+    annotation_type = file_row[0] if file_row else 'qa'
 
-    rows = cursor.fetchall()
+    # 根据标注类型和导出类型查询数据
+    if annotation_type == 'scoring':
+        # 对于评分标注: >= 4 为优质(correct), < 4 为劣质(incorrect)
+        if export_type == 'correct':
+            # 导出评分 >= 4 的数据
+            cursor.execute('''
+                           SELECT system, query, response, annotation_result
+                           FROM data_records
+                           WHERE file_id = ?
+                             AND annotation_result IS NOT NULL
+                             AND status = 'active'
+                           ORDER BY line_number
+                           ''', (file_id,))
+            all_rows = cursor.fetchall()
+            # 过滤出评分 >= 4 的记录
+            rows = []
+            for row in all_rows:
+                try:
+                    score = float(row[3])  # annotation_result
+                    if score >= 4:
+                        rows.append(row[:3])  # 只取 system, query, response
+                except (ValueError, TypeError):
+                    pass
+        else:  # incorrect
+            # 导出评分 < 4 的数据
+            cursor.execute('''
+                           SELECT system, query, response, annotation_result
+                           FROM data_records
+                           WHERE file_id = ?
+                             AND annotation_result IS NOT NULL
+                             AND status = 'active'
+                           ORDER BY line_number
+                           ''', (file_id,))
+            all_rows = cursor.fetchall()
+            # 过滤出评分 < 4 的记录
+            rows = []
+            for row in all_rows:
+                try:
+                    score = float(row[3])  # annotation_result
+                    if score < 4:
+                        rows.append(row[:3])  # 只取 system, query, response
+                except (ValueError, TypeError):
+                    pass
+    else:
+        # 对于QA标注: 直接匹配 'correct' 或 'incorrect'
+        cursor.execute('''
+                       SELECT system, query, response
+                       FROM data_records
+                       WHERE file_id = ?
+                         AND annotation_result = ?
+                         AND status = 'active'
+                       ORDER BY line_number
+                       ''', (file_id, export_type))
+        rows = cursor.fetchall()
+
     conn.close()
 
     # 准备导出数据
@@ -344,23 +397,14 @@ def export_data_from_db(file_id: int, export_name: str, export_type: str = "corr
     export_path = os.path.join(OUTPUT_FOLDER, export_name)
 
     try:
-        async def write_export_data():
-            async with aiofiles.open(export_path, 'w', encoding='utf-8') as f:
-                for item in export_data:
-                    await f.write(json.dumps(item, ensure_ascii=False) + '\n')
-            return True
+        async with aiofiles.open(export_path, 'w', encoding='utf-8') as f:
+            for item in export_data:
+                await f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
-        # 运行异步函数
-        import asyncio
-        success = asyncio.run(write_export_data())
-
-        if success:
-            return {
-                "export_path": export_path,
-                "export_count": len(export_data)
-            }
-        else:
-            return None
+        return {
+            "export_path": export_path,
+            "export_count": len(export_data)
+        }
     except Exception as e:
         print(f"Error exporting data: {e}")
         return None
