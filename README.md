@@ -1,6 +1,9 @@
 # 优质数据集筛选系统
 
 一个基于Vue 3 + FastAPI的现代化数据集筛选和标注系统，专为JSONL格式数据设计。
+![img.png](imgs/home.png)
+![img.png](imgs/qa.png)
+![img_1.png](imgs/score.png)
 
 ## 🌟 功能特性
 
@@ -33,6 +36,7 @@ python start.py
 ```
 
 启动脚本会自动：
+
 - 检查环境依赖
 - 安装Python和Node.js依赖
 - 创建示例数据文件
@@ -80,8 +84,16 @@ dataset_filter_system/
 系统支持JSONL格式的数据文件，每行一个JSON对象：
 
 ```json
-{"system": "你是一位地理学家", "query": "中国的首都是哪里？", "response": "中国的首都是北京"}
-{"system": "你是一位历史学家", "query": "秦始皇统一六国是哪一年？", "response": "秦始皇统一六国是在公元前221年"}
+{
+  "system": "你是一位地理学家",
+  "query": "中国的首都是哪里？",
+  "response": "中国的首都是北京"
+}
+{
+  "system": "你是一位历史学家",
+  "query": "秦始皇统一六国是哪一年？",
+  "response": "秦始皇统一六国是在公元前221年"
+}
 ```
 
 ## 🔧 API文档

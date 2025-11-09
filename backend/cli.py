@@ -36,7 +36,7 @@ def run(host: str, port: int, reload: bool, workers: int) -> None:
     panel_content.append(f'📚 Redoc   文档: {redoc_url}\n', style='yellow')
     panel_content.append(f'📡 OpenAPI JSON: {openapi_url}\n', style='green')
 
-    console.print(Panel(panel_content, title='New-Youth-Tool 服务信息', border_style='purple', padding=(1, 2)))
+    console.print(Panel(panel_content, title='WeBZ服务信息', border_style='purple', padding=(1, 2)))
     granian.Granian(
         target='backend.main:app',
         interface='asgi',
