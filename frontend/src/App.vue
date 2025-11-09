@@ -687,10 +687,11 @@ export default {
       try {
         const response = await axios.get('/api/files')
         if (response.data) {
-          fileList.value = response.data.files
+          fileList.value = response.data.files || []
         }
       } catch (error) {
         ElMessage.error('加载文件列表失败')
+        fileList.value = [] // Ensure fileList is always an array even on error
       } finally {
         filesLoading.value = false
       }
@@ -863,11 +864,13 @@ export default {
           ElMessage.success(`导出成功！共导出 ${response.data.export_count} 条${response.data.export_type}数据`)
           exportDialog.visible = false
           
-          // 创建下载链接
-          const downloadUrl = `/api/download/${response.data.export_path.split('/').pop()}`
+          // 创建下载链接 - extract filename from path (handle both / and \ separators)
+          const exportPath = response.data.export_path.replace(/\\/g, '/')
+          const filename = exportPath.split('/').pop()
+          const downloadUrl = `/api/download/${filename}`
           const link = document.createElement('a')
           link.href = downloadUrl
-          link.download = response.data.export_path.split('/').pop()
+          link.download = filename
           document.body.appendChild(link)
           link.click()
           document.body.removeChild(link)
